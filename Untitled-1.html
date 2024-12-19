@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Nhận Biết Rác</title>
+    <style>
+        body {
+            background-color: #a8d5ba; /* Green background */ 
+            background-image: url('Resources/HINHVU.jpg');
+            background-repeat: no-repeat;
+            background-size: cover;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        .header {
+            font-size: 2.5rem;
+            color: #333;
+            margin-bottom: 20px; /* Space between text and button */
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            background-color: #fff;
+            border: 2px solid #333;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #f0f0f0; /* Change color on hover */
+        }
+        #video {
+            width: 640px;
+            height: 480px;
+            border: 1px solid #ccc;
+            display: none;
+        }
+        #start {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .text {
+            font-size: 30px;
+        }
+        #logo {
+            position: absolute;
+            top: 0;
+            right: 0;
+            z-index: -1;
+            width: 200px;
+        }
+        @media (max-width: 450px) {
+            .header {
+                font-size: 25px;
+                padding-top: 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 id="header" class="header">(AI) NHẬN BIẾT VÀ PHÂN LỌAI RÁC THẢI Ở TRƯỜNG HỌC</h1>
+        <button id="start" onclick="init()">Start</button>
+        <button id="swap" style="display:none;" onclick="swapCamera()">Swap Camera</button>
+        <video id="video" autoplay></video>
+        <div id="webcam-container"></div>
+        <div id="label-container" class="text"></div>
+    </div>
+    <audio style="position: absolute; top: 0;" controls autoplay>
+        <source src="Resources/UNILEVER - NÀY NÀY, PHÂN LOẠI RÁC ĐI NÀO!.mp3" type="audio/ogg">
+        Your browser does not support the audio element.
+    </audio>
+    <img id="logo" src="Resources/vu.png">
+    
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <script type="text/javascript">
+    // Link mô hình từ Teachable Machine
+        const URL = "https://teachablemachine.withgoogle.com/models/T_OiRaWSK/";
+
+        const startButton = document.getElementById('start');
+        const video = document.getElementById('video');
+        const header = document.getElementById('header');
+        const logo = document.getElementById('logo');
+
+        // Khởi tạo âm thanh
+        const audioPlastic = new Audio('Resources/Rac_thai_nhua.mp3'); // Âm thanh khi nhân dien rác nhua
+        const audioPaper = new Audio('Resources/Rac_thai_giay.mp3'); // Âm thanh khi nhan dien rác giay
+        const audioNotRecycled = new Audio('Resources/Rac_thai_khong_tai_che.mp3'); // Âm thanh khi nhan dien rác thai không tái ch?
+        const audioNotProduct = new Audio('Resources/Chua_co_rac.mp3'); // Âm thanh khi không nhan dien rác
+        const audiovolon = new Audio('Resources/rac_thai_tai_che_vo_lon.mp3'); // Âm thanh khi nhân dien vo lon
+       
+        let chodocmotlan =true;
+        let currentClass = ""; // Luu tru l?p hien tai
+        let currentAudio = null; // Luu tru âm thanh hien tai
+
+        startButton.addEventListener('click', async () => {
+            startButton.style.display = 'none'; // Ấn nút Start
+            header.style.display = 'none'; //Ẩn tiêu ĐỀ
+        });
+
+        let model, webcam, labelContainer, maxPredictions;
+
+        async function init() {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+    
+            // Load model và metadata
+            model = await tmImage.load(modelURL, metadataURL);
+            maxPredictions = model.getTotalClasses();
+    
+            // Thiet lap webcam
+            const flip = true; // Lat webcam
+            webcam = new tmImage.Webcam(700, 700, flip); 
+            await webcam.setup(); // Yêu cầu quyền truy cập webcam
+            await webcam.play();
+            window.requestAnimationFrame(loop);
+    
+            // Thêm canvas webcam vào DOM
+            document.getElementById("webcam-container").appendChild(webcam.canvas);
+            labelContainer = document.getElementById("label-container");
+        }
+
+        async function loop() {
+            webcam.update(); // Cập nhật frame của webcam
+            await predict(); // Dự đoán từ webcam
+            window.requestAnimationFrame(loop);
+        }
+    
+        // Dự đoán loại rác và phát âm thanh tương ứng
+        async function predict() {
+            const predictions = await model.predictTopK(webcam.canvas, 1);
+            const detectedClass = predictions[0].className;
+            labelContainer.innerText = detectedClass;
+    
+            if (detectedClass !== currentClass) {
+                console.log(detectedClass);
+                if (currentAudio) {
+                    currentAudio.pause();
+                    currentAudio.currentTime = 0;
+                }
+
+                currentClass = detectedClass;
+                if (detectedClass === "CHƯA CÓ VẬT PHẨM RÁC THẢI") {
+                    currentAudio = audioNotProduct;
+                }
+                // Chọn âm thanh phù hợp
+                else if (detectedClass === "RÁC THẢI TÁI CHẾ ( RÁC THẢI NHỰA ) ") {
+                    currentAudio = audioPlastic;
+                    chodocmotlan =true;
+                } else if (detectedClass === "RÁC THẢI TÁI CHẾ ( RÁC THẢI GIẤY ) ") {
+                    currentAudio = audioPaper;
+                    chodocmotlan =true;
+                } else if (detectedClass === "RÁC THẢI KHÔNG TÁI CHỂ") {
+                    currentAudio = audioNotRecycled;
+                    chodocmotlan =true;
+                } else if (detectedClass === "RÁC THẢI TÁI CHẾ ( VỎ LON ) ") {
+                    currentAudio = audiovolon; 
+                    chodocmotlan =true;
+                }else
+                     {
+                    currentAudio = null;
+                }
+                if (currentAudio) {
+                    currentAudio.play();
+                }
+            }
+        }
+    </script>
+</body>
+</html>
