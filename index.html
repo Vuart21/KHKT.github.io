@@ -84,7 +84,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
     <script type="text/javascript">
     // Link mô hình từ Teachable Machine
-        const URL = "https://teachablemachine.withgoogle.com/models/bRbwSyPcq/";
+        const URL = "https://teachablemachine.withgoogle.com/models/0AXPQ1cPV/";
 
         const startButton = document.getElementById('start');
         const video = document.getElementById('video');
@@ -123,7 +123,41 @@
             await webcam.setup(); // Yêu cầu quyền truy cập webcam
             await webcam.play();
             window.requestAnimationFrame(loop);
-    
+            async function init() {
+            
+            // Kiểm tra hỗ trợ API
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert("Trình duyệt của bạn không hỗ trợ truy cập camera.");
+            return;
+            }
+
+    try {
+        // Cấu hình camera
+        const constraints = {
+            video: {
+                facingMode: "environment", // Camera sau
+                width: { ideal: 640 },
+                height: { ideal: 480 },
+            },
+            audio: false,
+        };
+
+        // Yêu cầu quyền truy cập camera
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        const video = document.getElementById("video");
+        video.srcObject = stream;
+        video.style.display = "block"; // Hiển thị video
+        await video.play();
+    } catch (error) {
+        console.error("Lỗi khi truy cập camera:", error);
+        alert("Không thể truy cập camera. Vui lòng kiểm tra quyền.");
+    }
+}
+
+const video = document.getElementById("video");
+video.onloadeddata = () => {
+    console.log("Video đã sẵn sàng.");
+};
             // Thêm canvas webcam vào DOM
             document.getElementById("webcam-container").appendChild(webcam.canvas);
             labelContainer = document.getElementById("label-container");
