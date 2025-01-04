@@ -125,34 +125,65 @@
             window.requestAnimationFrame(loop);
             async function init() {
             
-            // Kiểm tra hỗ trợ API
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            alert("Trình duyệt của bạn không hỗ trợ truy cập camera.");
-            return;
-            }
+                <script type="text/javascript">
+    async function init() {
+        const modelURL = URL + "model.json";
+        const metadataURL = URL + "metadata.json";
+    
+        // Load mô hình và metadata
+        model = await tmImage.load(modelURL, metadataURL);
+        maxPredictions = model.getTotalClasses();
 
-    try {
-        // Cấu hình camera
+        // Thiết lập camera
+        try {
+            const constraints = {
+                video: {
+                    facingMode: "environment", // Sử dụng camera sau mặc định
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
+                },
+                audio: false
+            };
+
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            video.srcObject = stream;
+            video.style.display = "block"; // Hiển thị video
+            await video.play();
+            document.getElementById("swap").style.display = "block"; // Hiển thị nút đổi camera
+
+            // Thêm khung hình vào DOM
+            labelContainer = document.getElementById("label-container");
+            loop();
+        } catch (error) {
+            console.error("Lỗi khi truy cập camera:", error);
+            alert("Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập hoặc sử dụng Safari trên iPhone.");
+        }
+    }
+
+    async function swapCamera() {
+        // Đổi giữa camera trước và sau
+        const currentFacing = video.srcObject.getVideoTracks()[0].getSettings().facingMode;
+        const newFacing = currentFacing === "user" ? "environment" : "user";
+
         const constraints = {
-            video: {
-                facingMode: "environment", // Camera sau
-                width: { ideal: 640 },
-                height: { ideal: 480 },
-            },
-            audio: false,
+            video: { facingMode: newFacing, width: { ideal: 640 }, height: { ideal: 480 } },
+            audio: false
         };
 
-        // Yêu cầu quyền truy cập camera
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        const video = document.getElementById("video");
         video.srcObject = stream;
-        video.style.display = "block"; // Hiển thị video
         await video.play();
-    } catch (error) {
-        console.error("Lỗi khi truy cập camera:", error);
-        alert("Không thể truy cập camera. Vui lòng kiểm tra quyền.");
     }
-}
+
+    async function loop() {
+        // Liên tục cập nhật và dự đoán
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            const predictions = await model.predict(video);
+            predict(predictions); // Gọi hàm xử lý dự đoán
+        }
+        requestAnimationFrame(loop);
+    }
+</script>
 
 const video = document.getElementById("video");
 video.onloadeddata = () => {
