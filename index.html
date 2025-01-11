@@ -109,23 +109,8 @@
 
         let model, webcam, labelContainer, maxPredictions;
 
-        async function init() {
-            const modelURL = URL + "model.json";
-            const metadataURL = URL + "metadata.json";
-    
-            // Load model và metadata
-            model = await tmImage.load(modelURL, metadataURL);
-            maxPredictions = model.getTotalClasses();
-    
-            // Thiet lap webcam
-            const flip = true; // Lat webcam
-            webcam = new tmImage.Webcam(700, 700, flip); 
-            await webcam.setup(); // Yêu cầu quyền truy cập webcam
-            await webcam.play();
-            window.requestAnimationFrame(loop);
-            async function init() {
             
-                <script type="text/javascript">
+
     async function init() {
         const modelURL = URL + "model.json";
         const metadataURL = URL + "metadata.json";
@@ -183,25 +168,11 @@
         }
         requestAnimationFrame(loop);
     }
-</script>
 
- @media (max-width: 450px) {
-    video {
-        width: 100%;
-        height: auto;
-    }
-    .header {
-        font-size: 1.5rem;
-    }
-    button {
-        font-size: 1rem;
-        padding: 8px 16px;
-    }
-}
-const video = document.getElementById("video");
+    
 video.onloadeddata = () => {
     console.log("Video đã sẵn sàng.");
-};
+
             // Thêm canvas webcam vào DOM
             document.getElementById("webcam-container").appendChild(webcam.canvas);
             labelContainer = document.getElementById("label-container");
@@ -252,6 +223,6 @@ video.onloadeddata = () => {
                 }
             }
         }
-    </script>
+</script>
 </body>
 </html>
