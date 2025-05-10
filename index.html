@@ -67,162 +67,102 @@
 </head>
 <body>
     <div class="container">
-        <h1 id="header" class="header">(AI) NHẬN BIẾT VÀ PHÂN LỌAI RÁC THẢI Ở TRƯỜNG HỌC</h1>
+        <h1 id="header" class="header">(AI) NHẬN BIẾT VÀ PHÂN LOẠI RÁC THẢI Ở TRƯỜNG HỌC</h1>
         <button id="start" onclick="init()">Start</button>
-        <button id="swap" style="display:none;" onclick="swapCamera()">Swap Camera</button>
-        <video id="video" autoplay></video>
         <div id="webcam-container"></div>
         <div id="label-container" class="text"></div>
     </div>
+
     <audio style="position: absolute; top: 0;" controls autoplay>
         <source src="Resources/UNILEVER - NÀY NÀY, PHÂN LOẠI RÁC ĐI NÀO!.mp3" type="audio/ogg">
         Your browser does not support the audio element.
     </audio>
     <img id="logo" src="Resources/vu.png">
-    
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
     <script type="text/javascript">
-    // Link mô hình từ Teachable Machine
-        const URL = "https://teachablemachine.withgoogle.com/models/0AXPQ1cPV/";
+    // Khai báo biến
+    const URL = "https://teachablemachine.withgoogle.com/models/pjXUGlpKX/";
+    let model, webcam, labelContainer, maxPredictions;
+    let currentClass = "";
+    let currentAudio = null;
+    let chodocmotlan = true;
 
-        const startButton = document.getElementById('start');
-        const video = document.getElementById('video');
-        const header = document.getElementById('header');
-        const logo = document.getElementById('logo');
-
-        // Khởi tạo âm thanh
-        const audioPlastic = new Audio('Resources/Rac_thai_nhua.mp3'); // Âm thanh khi nhân dien rác nhua
-        const audioPaper = new Audio('Resources/Rac_thai_giay.mp3'); // Âm thanh khi nhan dien rác giay
-        const audioNotRecycled = new Audio('Resources/Rac_thai_khong_tai_che.mp3'); // Âm thanh khi nhan dien rác thai không tái ch?
-        const audioNotProduct = new Audio('Resources/Chua_co_rac.mp3'); // Âm thanh khi không nhan dien rác
-        const audiovolon = new Audio('Resources/rac_thai_tai_che_vo_lon.mp3'); // Âm thanh khi nhân dien vo lon
-       
-        let chodocmotlan =true;
-        let currentClass = ""; // Luu tru l?p hien tai
-        let currentAudio = null; // Luu tru âm thanh hien tai
-
-        startButton.addEventListener('click', async () => {
-            startButton.style.display = 'none'; // Ấn nút Start
-            header.style.display = 'none'; //Ẩn tiêu ĐỀ
-        });
-
-        let model, webcam, labelContainer, maxPredictions;
-
-            
+    // Các file âm thanh
+    const audioPlastic = new Audio('Resources/Rac_thai_nhua.mp3');
+    const audioPaper = new Audio('Resources/Rac_thai_giay.mp3');
+    const audioNotRecycled = new Audio('Resources/Rac_thai_khong_tai_che.mp3');
+    const audioNotProduct = new Audio('Resources/Chua_co_rac.mp3');
+    const audiovolon = new Audio('Resources/rac_thai_tai_che_vo_lon.mp3');
 
     async function init() {
+        document.getElementById('start').style.display = 'none';
+        document.getElementById('header').style.display = 'none';
+
         const modelURL = URL + "model.json";
         const metadataURL = URL + "metadata.json";
-    
-        // Load mô hình và metadata
+
         model = await tmImage.load(modelURL, metadataURL);
         maxPredictions = model.getTotalClasses();
 
-        // Thiết lập camera
-        try {
-            const constraints = {
-                video: {
-                    facingMode: "environment", // Sử dụng camera sau mặc định
-                    width: { ideal: 640 },
-                    height: { ideal: 480 }
-                },
-                audio: false
-            };
+        // Khởi tạo webcam từ Teachable Machine
+        webcam = new tmImage.Webcam(640, 480, true); // width, height, flip
+        await webcam.setup(); // Yêu cầu quyền truy cập camera
+        await webcam.play();
 
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
-            video.srcObject = stream;
-            video.style.display = "block"; // Hiển thị video
-            await video.play();
-            document.getElementById("swap").style.display = "block"; // Hiển thị nút đổi camera
+        // Hiển thị video webcam
+        document.getElementById("webcam-container").appendChild(webcam.canvas);
+        labelContainer = document.getElementById("label-container");
 
-            // Thêm khung hình vào DOM
-            labelContainer = document.getElementById("label-container");
-            loop();
-        } catch (error) {
-            console.error("Lỗi khi truy cập camera:", error);
-            alert("Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập hoặc sử dụng Safari trên iPhone.");
-        }
-    }
-
-    async function swapCamera() {
-        // Đổi giữa camera trước và sau
-        const currentFacing = video.srcObject.getVideoTracks()[0].getSettings().facingMode;
-        const newFacing = currentFacing === "user" ? "environment" : "user";
-
-        const constraints = {
-            video: { facingMode: newFacing, width: { ideal: 640 }, height: { ideal: 480 } },
-            audio: false
-        };
-
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        video.srcObject = stream;
-        await video.play();
+        window.requestAnimationFrame(loop);
     }
 
     async function loop() {
-        // Liên tục cập nhật và dự đoán
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
-            const predictions = await model.predict(video);
-            predict(predictions); // Gọi hàm xử lý dự đoán
-        }
-        requestAnimationFrame(loop);
+        webcam.update(); // Cập nhật frame
+        await predict();
+        window.requestAnimationFrame(loop);
     }
 
-    
-video.onloadeddata = () => {
-    console.log("Video đã sẵn sàng.");
+    async function predict() {
+        const predictions = await model.predictTopK(webcam.canvas, 1);
+        const detectedClass = predictions[0].className;
+        console.log(detectedClass);
+        labelContainer.innerText = detectedClass;
 
-            // Thêm canvas webcam vào DOM
-            document.getElementById("webcam-container").appendChild(webcam.canvas);
-            labelContainer = document.getElementById("label-container");
-        }
+        if (detectedClass !== currentClass) {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+            }
 
-        async function loop() {
-            webcam.update(); // Cập nhật frame của webcam
-            await predict(); // Dự đoán từ webcam
-            window.requestAnimationFrame(loop);
-        }
-    
-        // Dự đoán loại rác và phát âm thanh tương ứng
-        async function predict() {
-            const predictions = await model.predictTopK(webcam.canvas, 1);
-            const detectedClass = predictions[0].className;
-            labelContainer.innerText = detectedClass;
-    
-            if (detectedClass !== currentClass) {
-                console.log(detectedClass);
-                if (currentAudio) {
-                    currentAudio.pause();
-                    currentAudio.currentTime = 0;
-                }
+            currentClass = detectedClass;
 
-                currentClass = detectedClass;
-                if (detectedClass === "CHƯA CÓ VẬT PHẨM RÁC THẢI") {
-                    currentAudio = audioNotProduct;
-                }
-                // Chọn âm thanh phù hợp
-                else if (detectedClass === "RÁC THẢI TÁI CHẾ ( RÁC THẢI NHỰA ) ") {
-                    currentAudio = audioPlastic;
-                    chodocmotlan =true;
-                } else if (detectedClass === "RÁC THẢI TÁI CHẾ ( RÁC THẢI GIẤY ) ") {
-                    currentAudio = audioPaper;
-                    chodocmotlan =true;
-                } else if (detectedClass === "RÁC THẢI KHÔNG TÁI CHẾ") {
-                    currentAudio = audioNotRecycled;
-                    chodocmotlan =true;
-                } else if (detectedClass === "RÁC THẢI TÁI CHẾ ( VỎ LON ) ") {
-                    currentAudio = audiovolon; 
-                    chodocmotlan =true;
-                }else
-                     {
-                    currentAudio = null;
-                }
-                if (currentAudio) {
-                    currentAudio.play();
-                }
+            // Chọn âm thanh phù hợp
+            if (detectedClass === "CHƯA CÓ VẬT PHẨM RÁC THẢI") {
+                currentAudio = audioNotProduct;
+            } else if (detectedClass === "RÁC THẢI TÁI CHẾ ( RÁC THẢI NHỰA ) ") {
+                currentAudio = audioPlastic;
+                chodocmotlan = true;
+            } else if (detectedClass === "RÁC THẢI TÁI CHẾ ( RÁC THẢI GIẤY ) ") {
+                currentAudio = audioPaper;
+                chodocmotlan = true;
+            } else if (detectedClass === "RÁC THẢI KHÔNG TÁI CHẾ") {
+                currentAudio = audioNotRecycled;
+                chodocmotlan = true;
+            } else if (detectedClass === "RÁC THẢI TÁI CHẾ ( VỎ LON ) ") {
+                currentAudio = audiovolon;
+                chodocmotlan = true;
+            } else {
+                currentAudio = null;
+            }
+
+            if (currentAudio) {
+                currentAudio.play();
             }
         }
-</script>
+    }
+    </script>
 </body>
 </html>
